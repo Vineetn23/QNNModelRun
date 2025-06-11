@@ -14,7 +14,10 @@ class MainActivity : AppCompatActivity() {
 
         val btnRunModel0 = Button(this).apply { text = "Run Model 0bin" }
         val btnRunModel6 = Button(this).apply { text = "Run Model 6bin" }
-        val textView = TextView(this).apply { text = "Waiting..." }
+        val textView = TextView(this).apply {
+            text = "Waiting..."
+            setPadding(24, 200, 24, 24) // Push UI slightly down for safe clicking
+        }
 
         btnRunModel0.setOnClickListener {
             textView.text = "Running model_0bin..."
@@ -28,7 +31,7 @@ class MainActivity : AppCompatActivity() {
 
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(32, 150, 32, 32)
+            setPadding(24, 100, 24, 24)
             addView(btnRunModel0)
             addView(btnRunModel6)
             addView(textView)
@@ -37,10 +40,23 @@ class MainActivity : AppCompatActivity() {
         setContentView(layout)
     }
 
-    private fun runQnnCommand(outputView: TextView, shellCommand: String) {
+    private fun runQnnCommand(outputView: TextView, executionCommand: String) {
         Thread {
             try {
-                val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", shellCommand))
+                // Properly quoted shell script
+                val shellScript = """
+                cd /data/local/tmp/test
+                chmod +x ./qnn-net-run
+                export VENDOR_LIB=/vendor/lib64
+                export LD_LIBRARY_PATH=/data/local/tmp/test:/vendor/dsp/cdsp:\${'$'}VENDOR_LIB
+                export ADSP_LIBRARY_PATH=/data/local/tmp/test:/system/lib/rfsa/adsp:/system/vendor/lib/rfsa/adsp:/dsp
+                export PATH=\${'$'}PATH:/data/local/tmp/test
+                $executionCommand
+            """.trimIndent()
+
+                // Wrap the shellScript in a single 'sh -c' string
+                val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "sh -c '${shellScript.replace("'", "'\\''")}'"))
+
                 val reader = BufferedReader(InputStreamReader(process.inputStream))
                 val errorReader = BufferedReader(InputStreamReader(process.errorStream))
 
@@ -73,29 +89,12 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
+
     private fun getModel0Command(): String {
-        return """
-            su -c "
-            cd /data/local/tmp/test &&
-            export VENDOR_LIB=/vendor/lib64 &&
-            export LD_LIBRARY_PATH=/data/local/tmp/test:/vendor/dsp/cdsp:\${'$'}VENDOR_LIB &&
-            export ADSP_LIBRARY_PATH=/data/local/tmp/test:/system/lib/rfsa/adsp:/system/vendor/lib/rfsa/adsp:/dsp &&
-            export PATH=\${'$'}PATH:/data/local/tmp/test &&
-            ./qnn-net-run --retrieve_context model_0bin.bin --backend libQnnHttp.so --input_list raw_list.txt --config_file config_bin.json --duration 100
-            "
-        """.trimIndent()
+        return "qnn-net-run --retrieve_context model_0bin.bin --backend libQnnHttp.so --input_list raw_list.txt --config_file config_bin.json --duration 100"
     }
 
     private fun getModel6Command(): String {
-        return """
-            su -c "
-            cd /data/local/tmp/test &&
-            export VENDOR_LIB=/vendor/lib64 &&
-            export LD_LIBRARY_PATH=/data/local/tmp/test:/vendor/dsp/cdsp:\${'$'}VENDOR_LIB &&
-            export ADSP_LIBRARY_PATH=/data/local/tmp/test:/system/lib/rfsa/adsp:/system/vendor/lib/rfsa/adsp:/dsp &&
-            export PATH=\${'$'}PATH:/data/local/tmp/test &&
-            ./qnn-net-run --retrieve_context model_6bin.bin --backend libQnnHttp.so --input_list raw_list.txt --config_file config_bin6.json --duration 100
-            "
-        """.trimIndent()
+        return "qnn-net-run --retrieve_context model_6bin.bin --backend libQnnHttp.so --input_list raw_list.txt --config_file config_bin6.json --duration 100"
     }
 }

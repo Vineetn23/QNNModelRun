@@ -7,6 +7,8 @@ android {
     namespace = "com.vineet.qnnmodelrun"
     compileSdk = 35
 
+    sourceSets["main"].kotlin.srcDirs("src/main/java")
+
     defaultConfig {
         applicationId = "com.vineet.qnnmodelrun"
         minSdk = 27
